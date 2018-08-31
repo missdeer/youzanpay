@@ -1,0 +1,96 @@
+<html lang="zh_CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .title }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0">
+    <meta name="description" content="个人网站收款 个人收款 个人网站支付 个人支付 在线支付 在线付款 即时到账接口 嵌入支付">
+    <style>
+        body {
+            text-align: center;
+            background-color: #e0e0e0
+        }
+
+        #app {
+            margin: 0 auto
+        }
+
+        #app h2 {
+            padding-top: 3%
+        }
+
+        #intro {
+            padding-top: 2%;
+            text-align: center
+        }
+
+        #app img {
+            padding-top: 3%;
+            width: 280px
+        }
+
+        #app input {
+            margin: 1%
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <h2>{{ .title }}</h2>
+    <div id="intro">
+	1、基于有赞微小店和有赞开放平台，费率1%，提现方便<br />
+	2、不直接接入支付宝、微信等支付平台，无需企业资质<br />
+	3、支持微信、支付宝、储蓄卡和扫码支付多种付款方式<br />
+	4、接入轻松，你可以体验流程后，演示<a href="https://github.com/dfordsoft/youzanpay/">源代码</a>可供参考
+	</div>
+	<a v-bind:href="qrurl">
+	<img v-bind:src="qrcode">
+	</a>
+    <div id="input_price">
+        金额(单位:分)：<input v-model="price"><br/>
+        收款理由描述：<input v-model="desc"><br/>
+        <button v-on:click="generate">点此生成支付二维码</button>
+    </div>
+</div>
+</body>
+
+<script src="//cdn.staticfile.org/vue/2.2.6/vue.min.js"></script>
+<script>var clientId = "";
+var ws = new WebSocket("wss://pay.yii.li/ws");
+var app = new Vue({
+    el: "#app",
+    data: {
+		qrurl: "",
+        qrcode: "https://img.yzcdn.cn/upload_files/2018/04/13/FrGvKvH629SzNkVenTItjMnwqj8m.jpg?imageView2/2/w/300/h/300/q/100/format/jpg",
+        price: 100,
+        desc: "技术分析派测试收款"
+    },
+        methods: {
+        generate: function () {
+			clientId = Math.random().toString(36).substr(2);
+			if (app.price < 10) {
+				app.price = 10
+			}
+            ws.send(clientId + "," + app.price + "," + app.desc)
+        }
+    }
+});
+ws.onmessage = function (response) {
+    var responseObj = JSON.parse(response.data);
+    if (responseObj.code !== 200) {
+        alert(responseObj.msg);
+        return
+    }
+    if (responseObj.event === "pay") {
+        if (responseObj.data === "WAIT_BUYER_PAY") {
+            app.qrcode = "https://img.yzcdn.cn/upload_files/2017/11/25/FqZjK96_t4g3PYC7m58RHXQ4PCRm.png?imageView2/2/w/300/h/300/q/100/format/png"
+        }
+        if (responseObj.data === "TRADE_SUCCESS") {
+            app.qrcode = "https://img.yzcdn.cn/upload_files/2017/11/25/FnFa-_giR389G_rtBBWspFw8esc7.png?imageView2/2/w/300/h/300/q/100/format/png"
+        }
+    }
+    if (responseObj.event === "create") {
+		app.qrcode = responseObj.qr_code
+		app.qrurl = responseObj.qr_url
+    }
+};</script>
+</html>

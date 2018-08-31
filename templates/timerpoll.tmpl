@@ -1,0 +1,122 @@
+<html lang="zh_CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ .title }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=0">
+    <meta name="description" content="个人网站收款 个人收款 个人网站支付 个人支付 在线支付 在线付款 即时到账接口 嵌入支付">
+    <style>
+        body {
+            text-align: center;
+            background-color: #e0e0e0
+        }
+
+        #app {
+            margin: 0 auto
+        }
+
+        #app h2 {
+            padding-top: 3%
+        }
+
+        #intro {
+            padding-top: 2%;
+            text-align: center
+        }
+
+        #app img {
+            padding-top: 3%;
+            width: 280px
+        }
+
+        #app input {
+            margin: 1%
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <h2>{{ .title }}</h2>
+    <div id="intro">
+	1、基于有赞微小店和有赞开放平台，费率1%，提现方便<br />
+	2、不直接接入支付宝、微信等支付平台，无需企业资质<br />
+	3、支持微信、支付宝、储蓄卡和扫码支付多种付款方式<br />
+	4、接入轻松，你可以体验流程后，演示<a href="https://github.com/dfordsoft/youzanpay/">源代码</a>可供参考
+	</div>
+	<a v-bind:href="qrurl">
+	<img v-bind:src="qrcode">
+	</a>
+    <div id="input_price">
+        金额(单位:分)：<input v-model="price"><br/>
+        收款理由描述：<input v-model="desc"><br/>
+        <button v-on:click="generate">点此生成支付二维码</button>
+    </div>
+</div>
+</body>
+
+<script src="//cdn.bootcss.com/vue/2.5.16/vue.min.js"></script>
+<script src="//cdn.bootcss.com/axios/0.18.0/axios.min.js"></script>
+<script src="//cdn.bootcss.com/qs/6.5.2/qs.min.js"></script>
+<script>
+var app = new Vue({
+    el: "#app",
+    data: {
+		qrurl: "",
+        qrcode: "https://img.yzcdn.cn/upload_files/2018/04/13/FrGvKvH629SzNkVenTItjMnwqj8m.jpg?imageView2/2/w/300/h/300/q/100/format/jpg",
+        price: 100,
+        desc: "技术分析派测试收款",
+		orderId:"",
+		timer:null
+    },
+	methods:{
+		generate:function(){
+			axios.post("/create/qrcode",Qs.stringify({
+				title:this.desc,
+				price:this.price
+			}),{
+				headers:{
+					responseType:"json"
+				}
+			}).then(function(response){
+				app.orderId=response.data.id;
+				app.qrcode=response.data.qr;
+				clearInterval(app.timer);
+				app.timer=setInterval(function(){
+					axios.post("/query/orderstatus",Qs.stringify({
+						id:app.orderId
+					}),{
+						headers:{
+							responseType:"json"
+						}
+					}).then(function(resp){
+						switch(String(resp.data.order_state)){
+							case "WAIT_BUYER_PAY":
+								app.qrcode="https://img.yzcdn.cn/upload_files/2017/11/25/FqZjK96_t4g3PYC7m58RHXQ4PCRm.png?imageView2/2/w/300/h/300/q/100/format/png";
+								break;
+							case "TRADE_SUCCESS":
+								app.qrcode="https://img.yzcdn.cn/upload_files/2017/11/25/FnFa-_giR389G_rtBBWspFw8esc7.png?imageView2/2/w/300/h/300/q/100/format/png";
+								clearInterval(app.timer);
+								app.timer=setTimeout(function(){
+									app.qrcode="https://img.yzcdn.cn/upload_files/2018/04/13/FrGvKvH629SzNkVenTItjMnwqj8m.jpg?imageView2/2/w/300/h/300/q/100/format/jpg";
+								},3000);
+								break;
+							case "TRADE_CLOSED":
+								clearInterval(app.timer);
+								app.timer=setTimeout(function(){
+									app.qrcode="https://img.yzcdn.cn/upload_files/2018/04/13/FrGvKvH629SzNkVenTItjMnwqj8m.jpg?imageView2/2/w/300/h/300/q/100/format/jpg";
+								},3000);
+								alert("订单已关闭");
+								break;
+						};
+					}).catch(function(error){
+						clearInterval(app.timer);
+						alert("出错了："+error);
+					});
+				},1500);
+			}).catch(function(error){
+				alert("出错了："+error);
+			});
+		}
+	}
+});
+</script>
+</html>
